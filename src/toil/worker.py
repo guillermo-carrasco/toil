@@ -13,6 +13,12 @@
 # limitations under the License.
 
 from __future__ import absolute_import
+
+# import sys as _sys
+# _sys.path.append('/home/jacob/pycharm-2016.1/debug-eggs/pycharm-debug.egg')
+# import pydevd
+# pydevd.settrace('127.0.0.1', port=21212, suspend=True, stdoutToServer=True, stderrToServer=True, trace_only_current_thread=False)
+
 import os
 import sys
 import copy

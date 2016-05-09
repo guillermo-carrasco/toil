@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from abc import ABCMeta, abstractmethod
+import sys
 import os
 import fcntl
 import time
 import logging
 import multiprocessing
 from toil.common import Config
-from toil.batchSystems.singleMachine import SingleMachineBatchSystem
 from toil.batchSystems.mesos.test import MesosTestSupport
 from toil.job import Job
 from toil.job import PromisedRequirement
@@ -85,10 +85,11 @@ class hidden:
             min_value, max_value = getCounters(counter_path)
             assert (min_value, max_value) == (0, 0)
 
-            root = Job.wrapJobFn(max_concurrency, self.cpu_count, counter_path, cores_per_job,
-                                 cores=0.1, memory='32M', disk='1M')
-            value = Job.Runner.startToil(root, options)
-            self.assertEqual(value, self.cpu_count / cores_per_job)
+            root = Job.wrapJobFn(maxConcurrency, self.cpu_count, counter_path, cores_per_job,
+                                 cores=1, memory='1M', disk='1Mi')
+            Job.Runner.startToil(root, options)
+            min_value, max_value = getCounters(counter_path)
+            self.assertEqual(max_value, self.cpu_count / cores_per_job)
 
         def testPromisedRequirementStatic(self):
             # for cores_per_job in self.allocated_cores:
@@ -114,7 +115,7 @@ class hidden:
             root.addChild(one2)
             root.addChild(mb)
             for _ in range(self.cpu_count):
-                root.addFollowOn(Job.wrapFn(measure_concurrency, counter_path,
+                root.addFollowOn(Job.wrapFn(measureConcurrency, counter_path,
                                             cores=PromisedRequirement(lambda x: x * cores_per_job, one1.rv()),
                                             memory=PromisedRequirement(mb.rv()),
                                             disk=PromisedRequirement(lambda x, y: x + y + 1022, one1.rv(), one2.rv())))
@@ -123,7 +124,8 @@ class hidden:
             self.assertEqual(max_value, self.cpu_count / cores_per_job)
 
 
-def max_concurrency(job, cpu_count, filename, cores_per_job):
+
+def maxConcurrency(job, cpu_count, filename, cores_per_job):
     """
     Returns the max number of concurrent tasks when using a PromisedRequirement instance
     to allocate the number of cores per job.
@@ -133,19 +135,15 @@ def max_concurrency(job, cpu_count, filename, cores_per_job):
     :param int cores_per_job: number of cores assigned to each job
     :return int max concurrency value:
     """
-    one1 = job.addChildFn(one, cores=0.1, memory='32M', disk='1M')
-    one2 = job.addChildFn(one, cores=0.1, memory='32M', disk='1M')
-    mb = job.addChildFn(thirtyTwoMB, cores=0.1, memory='32M', disk='1M')
+    is_one = job.addChildFn(one, cores=0.1, memory='32M', disk='1M')
+    mbfn = job.addChildFn(thirtyTwoMB, cores=0.1, memory='32M', disk='1M')
 
     values = []
     for _ in range(cpu_count):
-        value = job.addFollowOnFn(measure_concurrency, filename,
-                                  cores=PromisedRequirement(lambda x: x * cores_per_job, one1.rv()),
-                                  memory=PromisedRequirement(mb.rv()),
-                                  disk=PromisedRequirement(lambda x, y: x + y + 1022, one1.rv(), one2.rv())).rv()
-        values.append(value)
-    return max(values)
-
+        job.addFollowOnFn(measureConcurrency, filename,
+                          cores=1,
+                          memory='32M',
+                          disk='1Mi')
 
 def one():
     return 1
@@ -154,7 +152,7 @@ def thirtyTwoMB():
     return '32M'
 
 # TODO camel case
-def measure_concurrency(filepath):
+def measureConcurrency(filepath):
     """
     Run in parallel to test the number of concurrent tasks.
     This code was copied from toil.batchSystemTestMaxCoresSingleMachineBatchSystemTest
