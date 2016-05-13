@@ -31,18 +31,16 @@ import shutil
 import time
 import itertools
 import boto
-import codecs
 
 from unittest import skip
-from azure.storage.blob import BlobService
 from toil.common import Config
 from toil.jobStores.abstractJobStore import (AbstractJobStore, NoSuchJobException,
                                              NoSuchFileException)
 
 from bd2k.util.objects import abstractstaticmethod, abstractclassmethod
 from toil.jobStores.fileJobStore import FileJobStore
-from toil.lib import encryption
 from toil.test import ToilTest, needs_aws, needs_azure, needs_encryption, make_tests
+
 logger = logging.getLogger(__name__)
 
 
@@ -800,6 +798,7 @@ class AzureJobStoreTest(hidden.AbstractJobStoreTest):
         url = 'wasb://%s@%s.blob.core.windows.net/%s' % (containerName, cls.accountName, fileName)
         if size is None:
             return url
+        from azure.storage.blob import BlobService
         blobService = BlobService(account_key=_fetchAzureAccountKey(cls.accountName),
                                   account_name=cls.accountName)
         content = os.urandom(size)
@@ -820,6 +819,7 @@ class AzureJobStoreTest(hidden.AbstractJobStoreTest):
     @staticmethod
     def _createExternalStore():
         from toil.jobStores.azureJobStore import _fetchAzureAccountKey
+        from azure.storage.blob import BlobService
         blobService = BlobService(account_key=_fetchAzureAccountKey(AzureJobStoreTest.accountName),
                                   account_name=AzureJobStoreTest.accountName)
         containerName = 'import-export-test-%s' % uuid.uuid4()
